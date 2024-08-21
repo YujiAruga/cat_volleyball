@@ -108,6 +108,41 @@ fn player(
     }
 }
 
+const BALL_VELOCITY_X: f32 = 30.0;
+const BALL_VELOCITY_Y: f32 = 0.0;
+const BALL_RADIUS: f32 = 4.0;
+
+#[derive(Component)]
+pub struct Ball {
+    pub velocity: Vec2,
+    pub radius: f32,
+}
+
+// Initializes one ball in the middle-ish of the arena.
+fn initialize_ball(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    atlas: Handle<TextureAtlas>,
+    ball_sprite: usize,
+) {
+    commands.spawn((
+        Ball {
+            velocity: Vec2::new(BALL_VELOCITY_X, BALL_VELOCITY_Y),
+            radius: BALL_RADIUS,
+        },
+        SpriteSheetBundle {
+            sprite: TextureAtlasSprite::new(ball_sprite),
+            texture_atlas: atlas,
+            transform: Transform::from_xyz(
+                ARENA_WIDTH / 2.0,
+                ARENA_HEIGHT / 2.0,
+                0.0
+            ),
+            ..default()
+        },
+        ));
+}
+
 fn setup(mut commands: Commands,
          asset_server: Res<AssetServer>,
          mut texture_atlases: ResMut<Assets<TextureAtlas>>,
@@ -116,6 +151,10 @@ fn setup(mut commands: Commands,
         "textures/spritesheet.png"
     );
 
+
+    /*
+    Set up cat indicies
+     */
     let mut sprite_atlas = TextureAtlas::new_empty(
         spritesheet,
         Vec2::new(58.0, 34.0)
@@ -139,6 +178,23 @@ fn setup(mut commands: Commands,
         )
     );
 
+    /*
+    Initialise a Ball
+     */
+    let ball_corner = Vec2::new(1.0, 1.0);
+    let ball_size = Vec2::new(8.0, 8.0);
+
+    // create texture atlas handle.
+    let ball_index =
+        sprite_atlas.add_texture(Rect::from_corners(
+            ball_corner,
+            ball_corner + ball_size
+        ));
+
+
+    /*
+    Initialise cameras
+     */
     let texture_atlas_handle = texture_atlases.add(sprite_atlas);
 
     commands.spawn(Camera2dBundle {
@@ -150,6 +206,17 @@ fn setup(mut commands: Commands,
         ..default()
     });
 
+    initialize_ball(
+        &mut commands,
+        &asset_server,
+        texture_atlas_handle.clone(),
+        ball_index,
+    );
+
+
+    /*
+    Initialise Players
+     */
     initialize_player(
         &mut commands,
         texture_atlas_handle.clone(),
