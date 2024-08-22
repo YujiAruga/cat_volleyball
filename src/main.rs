@@ -235,6 +235,29 @@ fn setup(mut commands: Commands,
     );
 }
 
+
+/*
+Ball movement system
+ */
+
+pub const GRAVITY_ACCELERATION: f32 = -40.0;
+
+fn move_ball(
+    time: Res<Time>,
+    mut query: Query<(&mut Ball, &mut Transform)>
+) {
+    for (mut ball, mut transform) in query.iter_mut() {
+        // Apply movement deltas
+        transform.translation.x += ball.velocity.x * time.raw_delta_seconds();
+        transform.translation.y += (
+            ball.velocity.y
+            + time.raw_delta_seconds()
+            * GRAVITY_ACCELERATION / 2.0)
+            * time.raw_delta_seconds();
+        ball.velocity.y += time.raw_delta_seconds() * GRAVITY_ACCELERATION;
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -247,6 +270,7 @@ fn main() {
         }))
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_startup_system(setup)
+        .add_system(move_ball)
         .add_system(player)
         .run();
 }
