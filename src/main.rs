@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::sprite::{TextureAtlas, TextureAtlasSprite};
+use rand::Rng;
 
 const ARENA_WIDTH: f32 = 700.0;
 const ARENA_HEIGHT: f32 = 700.0;
@@ -51,6 +52,75 @@ impl Side {
 #[derive(Component)]
 struct Player {
     side: Side,
+}
+
+
+/*
+Bounce system
+ */
+
+fn point_in_rect(
+    x: f32, // ball's x and y location
+    y: f32,
+    left: f32, // the player box's boundary
+    bottom: f32,
+    right: f32,
+    top: f32,
+) -> bool {
+    x >= left && x <= right && y >= bottom && y <= top
+}
+
+fn bounce(
+    mut ball_query: Query<(&mut Ball, &Transform)>,
+    player_query: Query<(&Player, &Transform)>,
+) {
+    for (mut ball, ball_transform) in ball_query.iter_mut() {
+        let ball_x = ball_transform.translation.x;
+        let ball_y = ball_transform.translation.y;
+
+        if ball_y <= ball.radius && ball.velocity.y < 0.0 {
+            ball.velocity.y = -ball.velocity.y;
+        }
+        else if ball_y >= (ARENA_HEIGHT - ball.radius) && ball.velocity.y > 0.0 {
+            ball.velocity.y = -ball.velocity.y;
+        }
+        else if ball_x <= ball.radius && ball.velocity.x < 0.0 {
+            ball.velocity.x = -ball.velocity.x;
+        }
+        else if ball_x >= (ARENA_WIDTH - ball.radius) && ball.velocity.x > 0.0 {
+            ball.velocity.x = -ball.velocity.x;
+        }
+        // ... additional collision detection
+
+        for (player, player_trans) in player_query.iter() {
+            let player_x = player_trans.translation.x;
+            let player_y = player_trans.translation.y;
+
+            if point_in_rect(
+                ball_x,
+                ball_y,
+                player_x - PLAYER_WIDTH / 2.0 - ball.radius,
+                player_y - PLAYER_HEIGHT / 2.0 - ball.radius,
+                player_x + PLAYER_WIDTH / 2.0 + ball.radius,
+                player_y + PLAYER_HEIGHT / 2.0 + ball.radius,
+            ) {
+                if ball.velocity.y < 0.0 {
+                    // Only bounce when ball is falling
+                    ball.velocity.y = -ball.velocity.y;
+
+                    let mut rng = rand::thread_rng();
+                    match player.side {
+                        Side::Left => {
+                            ball.velocity.x = ball.velocity.x.abs() * rng.gen_range(0.6..1.4)
+                        }
+                        Side::Right => {
+                            ball.velocity.x = -ball.velocity.x.abs() * rng.gen_range(0.6..1.4)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn initialize_player(
@@ -271,6 +341,7 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_startup_system(setup)
         .add_system(move_ball)
+        .add_system(bounce)
         .add_system(player)
         .run();
 }
