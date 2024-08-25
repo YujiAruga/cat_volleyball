@@ -10,6 +10,10 @@ const PLAYER_WIDTH: f32 = 22.0;
 
 const PLAYER_SPEED: f32 = 60.0;
 
+const BALL_VELOCITY_X: f32 = 30.0;
+const BALL_VELOCITY_Y: f32 = 0.0;
+const BALL_RADIUS: f32 = 4.0;
+
 #[derive(Copy, Clone)]
 enum Side {
     Left,
@@ -52,6 +56,12 @@ impl Side {
 #[derive(Component)]
 struct Player {
     side: Side,
+}
+
+#[derive(Component)]
+pub struct Ball {
+    pub velocity: Vec2,
+    pub radius: f32,
 }
 
 
@@ -123,6 +133,24 @@ fn bounce(
     }
 }
 
+
+fn move_ball(
+    time: Res<Time>,
+    mut query: Query<(&mut Ball, &mut Transform)>
+) {
+    for (mut ball, mut transform) in query.iter_mut() {
+        // Apply movement deltas
+        transform.translation.x += ball.velocity.x * time.raw_delta_seconds();
+        transform.translation.y += (
+            ball.velocity.y
+                + time.raw_delta_seconds()
+                * GRAVITY_ACCELERATION / 2.0)
+            * time.raw_delta_seconds();
+        ball.velocity.y += time.raw_delta_seconds() * GRAVITY_ACCELERATION;
+    }
+}
+
+
 fn initialize_player(
     commands: &mut Commands,
     atlas: Handle<TextureAtlas>,
@@ -178,15 +206,6 @@ fn player(
     }
 }
 
-const BALL_VELOCITY_X: f32 = 30.0;
-const BALL_VELOCITY_Y: f32 = 0.0;
-const BALL_RADIUS: f32 = 4.0;
-
-#[derive(Component)]
-pub struct Ball {
-    pub velocity: Vec2,
-    pub radius: f32,
-}
 
 // Initializes one ball in the middle-ish of the arena.
 fn initialize_ball(
@@ -312,21 +331,7 @@ Ball movement system
 
 pub const GRAVITY_ACCELERATION: f32 = -40.0;
 
-fn move_ball(
-    time: Res<Time>,
-    mut query: Query<(&mut Ball, &mut Transform)>
-) {
-    for (mut ball, mut transform) in query.iter_mut() {
-        // Apply movement deltas
-        transform.translation.x += ball.velocity.x * time.raw_delta_seconds();
-        transform.translation.y += (
-            ball.velocity.y
-            + time.raw_delta_seconds()
-            * GRAVITY_ACCELERATION / 2.0)
-            * time.raw_delta_seconds();
-        ball.velocity.y += time.raw_delta_seconds() * GRAVITY_ACCELERATION;
-    }
-}
+
 
 fn main() {
     App::new()
