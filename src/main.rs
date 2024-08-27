@@ -14,6 +14,10 @@ const BALL_VELOCITY_X: f32 = 30.0;
 const BALL_VELOCITY_Y: f32 = 0.0;
 const BALL_RADIUS: f32 = 4.0;
 
+pub const GRAVITY_ACCELERATION: f32 = -40.0;
+
+pub const SCORE_FONT_SIZE: f32 = 20.0;
+
 #[derive(Copy, Clone)]
 enum Side {
     Left,
@@ -62,6 +66,18 @@ struct Player {
 pub struct Ball {
     pub velocity: Vec2,
     pub radius: f32,
+}
+
+
+#[derive(Resource)]
+struct Score {
+    left: usize,
+    right: usize,
+}
+
+#[derive(Component)]
+struct ScoreBoard {
+    side: Side
 }
 
 
@@ -232,6 +248,82 @@ fn initialize_ball(
         ));
 }
 
+
+fn scoring(
+    mut query: Query<(&mut Ball, &mut Transform)>,
+    mut score: ResMut<Score>,
+) {
+    for (mut ball, mut transform) in query.iter_mut() {
+        let ball_x = transform.translation.x;
+        let ball_y = transform.translation.y;
+
+        if ball_y < ball.radius {
+            // touched the ground
+            if ball_x <= ARENA_WIDTH / 2.0 {
+                score.right += 1;
+                // Change direction
+                ball.velocity.x = ball.velocity.x.abs();
+            }
+            else {
+                score.left += 1;
+                // Change direction
+                ball.velocity.x = -ball.velocity.x.abs();
+            }
+
+            // reset the ball to the middle
+            transform.translation.x = ARENA_WIDTH / 2.0;
+            transform.translation.y = ARENA_HEIGHT / 2.0;
+
+            ball.velocity.y = 0.0; // reset to free drop
+        }
+    }
+}
+
+fn score_display(
+    score: Res<Score>,
+    mut query: Query<(&mut Text, &ScoreBoard)>
+) {
+    for (mut text, scoreboard) in query.iter_mut() {
+        text.sections[0].value = match scoreboard.side {
+            Side::Left => score.left.to_string(),
+            Side::Right => score.right.to_string(),
+        };
+    }
+}
+
+
+fn initialize_scoreboard(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    side: Side,
+    x: f32,
+) {
+    commands.spawn((
+        ScoreBoard { side },
+        TextBundle::from_sections([
+            TextSection::from_style(TextStyle {
+                font_size: SCORE_FONT_SIZE,
+                color: Color::WHITE,
+                font: asset_server.load("fonts/Roboto-Medium.ttf"),
+            })])
+            .with_style(Style {
+                position_type: PositionType::Absolute,
+                position: UiRect {
+                    top: Val::Px(25.0),
+                    left: Val::Px(x),
+                    ..default()
+                },
+                ..default()
+            })
+            .with_text_alignment(match side {
+                Side::Left => TextAlignment::Left,
+                Side::Right => TextAlignment::Right,
+            }),
+        ));
+}
+
+
+
 fn setup(mut commands: Commands,
          asset_server: Res<AssetServer>,
          mut texture_atlases: ResMut<Assets<TextureAtlas>>,
@@ -322,6 +414,23 @@ fn setup(mut commands: Commands,
         ARENA_WIDTH - PLAYER_WIDTH / 2.0,
         PLAYER_HEIGHT / 2.0,
     );
+
+
+    initialize_scoreboard(
+        &mut commands,
+        &asset_server,
+        Side::Left,
+        ARENA_WIDTH / 2.0 - 25.0
+    );
+
+    initialize_scoreboard(
+        &mut commands,
+        &asset_server,
+        Side::Right,
+        ARENA_WIDTH / 2.0 + 25.0
+    );
+
+
 }
 
 
@@ -329,7 +438,7 @@ fn setup(mut commands: Commands,
 Ball movement system
  */
 
-pub const GRAVITY_ACCELERATION: f32 = -40.0;
+
 
 
 
@@ -344,9 +453,12 @@ fn main() {
             ..default()
         }))
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
+        .insert_resource(Score { left: 0, right: 0 })
         .add_startup_system(setup)
         .add_system(move_ball)
         .add_system(bounce)
         .add_system(player)
+        .add_system(scoring)
+        .add_system(score_display)
         .run();
 }
